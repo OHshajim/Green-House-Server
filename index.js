@@ -21,11 +21,9 @@ app.use(
 );
 app.use(
   cors({
-    origin: [
-      "https://teal-malasada-0a1afc.netlify.app/",
-      "http://localhost:5000",
-    ],
-    credentials: true,
+    origin: "*", // This allows all origins
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type"],
   })
 );
 
@@ -39,6 +37,8 @@ const supabase = createClient(
 app.post("/MediaHosting", async (req, res) => {
   try {
     const { media } = req.files;
+    console.log(media);
+
     const uploadResult = await cloudinary.uploader
       .upload(media.tempFilePath)
       .catch((error) => {
@@ -137,8 +137,6 @@ app.get("/testimonials", async (req, res) => {
 app.post("/testimonial", async (req, res) => {
   try {
     const postData = req.body;
-    console.log(postData);
-
     if (!postData) {
       return res
         .status(400)
@@ -149,19 +147,17 @@ app.post("/testimonial", async (req, res) => {
       .from("Testimonials")
       .insert(postData);
 
-    if (error) {
-      console.error("Error inserting data into Supabase:", error);
-      return res
-        .status(500)
-        .json({ success: false, message: "Error inserting testimonial" });
-    }
+    if (error) throw error; // Throwing error for global catch block
 
     res.status(200).json({ success: true, data });
   } catch (err) {
-    console.error("Server Error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    console.error("Supabase Error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: err.message || "Server Error" });
   }
 });
+
 app.put("/testimonial", async (req, res) => {
   const updatedData = req.body;
   const { data, error } = await supabase
