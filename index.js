@@ -41,17 +41,89 @@ app.post("/MediaHosting", async (req, res) => {
 });
 
 // For testimonials
-app.get("/testimonials", async (req, res) => {
-  const { data, error } = await supabase.from("Testimonials").select();
 
-  if (error) {
-    console.error("Error to get testimonial : ", error);
+app.get("/TotalTestimonials", async (req, res) => {
+  try {
+    const { data, error, count } = await supabase
+      .from("Testimonials")
+      .select("*", { count: "exact" });
+
+    if (error) {
+      console.error("Error fetching testimonials count:", error);
+      return res
+        .status(500)
+        .json({ success: false, message: "Error fetching count" });
+    }
+    res.status(200).json({ success: true, totalTestimonials: count });
+  } catch (err) {
+    console.error("Unexpected error:", err);
     return res
       .status(500)
-      .json({ success: false, message: "Error to get testimonial" });
+      .json({ success: false, message: "Unexpected error occurred" });
   }
-  res.status(200).json({ success: true, data });
 });
+
+app.get("/testimonials", async (req, res) => {
+  try {
+    const {
+      destination,
+      accommodation,
+      vibe,
+      date,
+      rating,
+      minDuration,
+      maxDuration,
+      sort,
+      search,
+      page = 1, // Default page number is 1
+    } = req.query;
+
+    let query = supabase.from("Testimonials").select();
+
+    // Apply filters
+    if (destination) query = query.eq("cities", destination);
+    if (accommodation)
+      query = query.eq("accommodations", accommodation.toLowerCase());
+    if (vibe) query = query.eq("travelTags", vibe);
+    if (date) query = query.eq("dateOfTravel", date);
+    if (rating) query = query.eq("rating", rating);
+    if (minDuration) query = query.gte("duration", minDuration);
+    if (maxDuration) query = query.lte("duration", maxDuration);
+
+    // Search by text
+    if (search) {
+      query = query.ilike("TravelerName", `%${search}%`);
+    }
+
+    // Sorting
+    if (sort === "asc") {
+      query = query.order("created_at", { ascending: true });
+    } else if (sort === "desc") {
+      query = query.order("created_at", { ascending: false });
+    }
+
+    // Pagination
+    const limit = 9;
+    const offset = (page - 1) * limit;
+
+    const { data, error } = await query.range(offset, offset + limit - 1);
+
+    if (error) {
+      console.error("Error fetching testimonials:", error);
+      return res
+        .status(500)
+        .json({ success: false, message: "Error fetching testimonials" });
+    }
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Unexpected error occurred" });
+  }
+});
+
 app.post("/testimonial", async (req, res) => {
   try {
     const postData = req.body;
