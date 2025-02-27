@@ -14,18 +14,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
+app.use(cors());
 app.use(
   fileUpload({
     useTempFiles: true,
   })
 );
-app.use(
-  cors({
-    origin: ["https://teal-malasada-0a1afc.netlify.app"],
-    credentials: true,
-  })
-);
-
 // Connect to supabase
 const supabase = createClient(
   process.env.SUPABASE_URL,
