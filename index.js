@@ -14,14 +14,18 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
+
 app.use(
   fileUpload({
     useTempFiles: true,
+    tempFileDir: "/tmp/",
+    debug: true,
   })
 );
+
 app.use(
   cors({
-    origin: "*", // This allows all origins
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"],
   })
@@ -33,19 +37,31 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
-// Media Hosting API
 app.post("/MediaHosting", async (req, res) => {
   try {
-    const { media } = req.files;
-    console.log(media);
+    if (!req.files || !req.files.media) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No files uploaded" });
+    }
 
-    const uploadResult = await cloudinary.uploader
-      .upload(media.tempFilePath)
-      .catch((error) => {
-        res.status(500).json({ success: false, message: "Media upload error" });
+    const mediaFiles = Array.isArray(req.files.media)
+      ? req.files.media
+      : [req.files.media];
+    console.log(mediaFiles);
+
+    const uploadPromises = mediaFiles.map(async (file) => {
+      const uploadResult = await cloudinary.uploader.upload(file.tempFilePath, {
+        resource_type: "auto",
       });
-    res.status(200).json({ success: true, HostingURL: uploadResult.url });
+      return uploadResult.url;
+    });
+
+    const uploadedURLs = await Promise.all(uploadPromises);
+
+    res.status(200).json({ success: true, HostingURLs: uploadedURLs });
   } catch (err) {
+    console.error("Upload Error:", err);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
